@@ -1,0 +1,22 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "sqlServerAdministratorLogin": {
+            "reference": {
+                "keyVault": {
+                    "id": "/subscriptions/cfacb69f-a7da-4823-ad82-6eea1c783b5a/resourceGroups/rg-bizzkit-dev-northeurope-001/providers/Microsoft.KeyVault/vaults/kv-bizzkit-dev-001"
+                },
+                "secretName": "sqlServerAdministratorLogin"
+            }
+        },
+        "sqlServerAdministratorPassword": {
+            "reference": {
+                "keyVault": {
+                    "id": "/subscriptions/cfacb69f-a7da-4823-ad82-6eea1c783b5a/resourceGroups/rg-bizzkit-dev-northeurope-001/providers/Microsoft.KeyVault/vaults/kv-bizzkit-dev-001"
+                },
+                "secretName": "sqlServerAdministratorPassword"
+            }
+        }
+    }
+}
