@@ -1,0 +1,114 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.4.613.9944",
+      "templateHash": "10511789939693989618"
+    }
+  },
+  "parameters": {
+    "location": {
+      "type": "string",
+      "metadata": {
+        "description": "The Azure region into which the resources should be deployed."
+      }
+    },
+    "environmentName": {
+      "type": "string",
+      "defaultValue": "Development",
+      "allowedValues": [
+        "Development",
+        "Production"
+      ],
+      "metadata": {
+        "description": "The name of the environment. This must be Development or Production."
+      }
+    },
+    "auditStorageAccountSkuName": {
+      "type": "string",
+      "defaultValue": "Standard_LRS",
+      "metadata": {
+        "description": "The name of the audit storage account SKU."
+      }
+    },
+    "sqlServerAdministratorLogin": {
+      "type": "secureString",
+      "metadata": {
+        "description": "The administrator login username for the SQL server."
+      }
+    },
+    "sqlServerAdministratorLoginPassword": {
+      "type": "secureString",
+      "metadata": {
+        "description": "The administrator login password for the SQL server."
+      }
+    },
+    "sqlDatabaseSku": {
+      "type": "object",
+      "defaultValue": {
+        "name": "Standard",
+        "tier": "Standard"
+      },
+      "metadata": {
+        "description": "The name and tier of the SQL database SKU."
+      }
+    }
+  },
+  "functions": [],
+  "variables": {
+    "sqlServerName": "[format('teddy{0}{1}', parameters('location'), uniqueString(resourceGroup().id))]",
+    "sqlDatabaseName": "TeddyBear",
+    "auditingenabled": "[equals(parameters('environmentName'), 'Production')]",
+    "auditStorageAccountName": "[take(format('bearaudit{0}{1}', parameters('location'), uniqueString(resourceGroup().id)), 24)]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Sql/servers",
+      "apiVersion": "2020-11-01-preview",
+      "name": "[variables('sqlServerName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "administratorLogin": "[parameters('sqlServerAdministratorLogin')]",
+        "administratorLoginPassword": "[parameters('sqlServerAdministratorLoginPassword')]"
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/databases",
+      "apiVersion": "2020-11-01-preview",
+      "name": "[format('{0}/{1}', variables('sqlServerName'), variables('sqlDatabaseName'))]",
+      "location": "[parameters('location')]",
+      "sku": "[parameters('sqlDatabaseSku')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', variables('sqlServerName'))]"
+      ]
+    },
+    {
+      "condition": "[variables('auditingenabled')]",
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2021-02-01",
+      "name": "[variables('auditStorageAccountName')]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "[parameters('auditStorageAccountSkuName')]"
+      },
+      "kind": "StorageV2"
+    },
+    {
+      "condition": "[variables('auditingenabled')]",
+      "type": "Microsoft.Sql/servers/auditingSettings",
+      "apiVersion": "2020-11-01-preview",
+      "name": "[format('{0}/{1}', variables('sqlServerName'), 'default')]",
+      "properties": {
+        "state": "Enabled",
+        "storageEndpoint": "[if(equals(parameters('environmentName'), 'Production'), reference(resourceId('Microsoft.Storage/storageAccounts', variables('auditStorageAccountName'))).primaryEndpoints.blob, '')]",
+        "storageAccountAccessKey": "[if(equals(parameters('environmentName'), 'Production'), listkeys(resourceId('Microsoft.Storage/storageAccounts', variables('auditStorageAccountName')), '2021-02-01').keys[0].value, '')]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('auditStorageAccountName'))]",
+        "[resourceId('Microsoft.Sql/servers', variables('sqlServerName'))]"
+      ]
+    }
+  ]
+}
