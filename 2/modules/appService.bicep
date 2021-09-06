@@ -1,6 +1,10 @@
 param location string = resourceGroup().location
 param appServiceAppName string = 'toylaunch${uniqueString(resourceGroup().id)}'
-
+param appServicePlanSku object = {
+  name: 'F1'
+  tier: 'Free'
+  capacity: 1
+}
 @allowed([
   'nonprod'
   'prod'
@@ -15,8 +19,9 @@ resource appServicePlan 'Microsoft.Web/serverFarms@2020-06-01' = {
   name: appServicePlanName
   location: location
   sku: {
-    name: appServicePlanSkuName
-    tier: appServicePlanTierName
+    name: appServicePlanSku.name
+    tier: appServicePlanSku.tier
+    capacity: appServicePlanSku.capacity
   }
 }
 
