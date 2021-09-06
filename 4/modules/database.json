@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.4.613.9944",
-      "templateHash": "10511789939693989618"
+      "templateHash": "11258799837732738833"
     }
   },
   "parameters": {
@@ -110,5 +110,19 @@
         "[resourceId('Microsoft.Sql/servers', variables('sqlServerName'))]"
       ]
     }
-  ]
+  ],
+  "outputs": {
+    "serverName": {
+      "type": "string",
+      "value": "[variables('sqlServerName')]"
+    },
+    "location": {
+      "type": "string",
+      "value": "[parameters('location')]"
+    },
+    "serverFullyQualifiedDomainname": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Sql/servers', variables('sqlServerName'))).fullyQualifiedDomainName]"
+    }
+  }
 }

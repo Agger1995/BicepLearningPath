@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.4.613.9944",
-      "templateHash": "15411809007778945497"
+      "templateHash": "11900629741301331114"
     }
   },
   "parameters": {
@@ -13,7 +13,8 @@
       "type": "array",
       "defaultValue": [
         "westeurope",
-        "northeurope"
+        "northeurope",
+        "eastus2"
       ],
       "metadata": {
         "description": "The Azure regions into which the resources should be deployed."
@@ -30,10 +31,62 @@
       "metadata": {
         "description": "The administrator login password for the SQL server."
       }
+    },
+    "virtualNetworkAddressPrefix": {
+      "type": "string",
+      "defaultValue": "10.10.0.0/16",
+      "metadata": {
+        "description": "The IP address range for all virtual networks to use."
+      }
+    },
+    "subnets": {
+      "type": "array",
+      "defaultValue": [
+        {
+          "name": "frontend",
+          "ipAddressRange": "10.10.5.0/24"
+        },
+        {
+          "name": "backend",
+          "ipAddressRange": "10.10.10.0/24"
+        }
+      ]
     }
   },
   "functions": [],
+  "variables": {
+    "copy": [
+      {
+        "name": "subnetProperties",
+        "count": "[length(parameters('subnets'))]",
+        "input": {
+          "name": "[parameters('subnets')[copyIndex('subnetProperties')].name]",
+          "properties": {
+            "addressPrefix": "[parameters('subnets')[copyIndex('subnetProperties')].ipAddressRange]"
+          }
+        }
+      }
+    ]
+  },
   "resources": [
+    {
+      "copy": {
+        "name": "virtualNetworks",
+        "count": "[length(parameters('locations'))]"
+      },
+      "type": "Microsoft.Network/virtualNetworks",
+      "apiVersion": "2020-11-01",
+      "name": "[format('teddybear-{0}', parameters('locations')[copyIndex()])]",
+      "location": "[parameters('locations')[copyIndex()]]",
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "[parameters('virtualNetworkAddressPrefix')]"
+          ]
+        },
+        "subnets": "[variables('subnetProperties')]"
+      }
+    },
     {
       "copy": {
         "name": "databases",
@@ -65,7 +118,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.4.613.9944",
-              "templateHash": "10511789939693989618"
+              "templateHash": "11258799837732738833"
             }
           },
           "parameters": {
@@ -170,9 +223,36 @@
                 "[resourceId('Microsoft.Sql/servers', variables('sqlServerName'))]"
               ]
             }
-          ]
+          ],
+          "outputs": {
+            "serverName": {
+              "type": "string",
+              "value": "[variables('sqlServerName')]"
+            },
+            "location": {
+              "type": "string",
+              "value": "[parameters('location')]"
+            },
+            "serverFullyQualifiedDomainname": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Sql/servers', variables('sqlServerName'))).fullyQualifiedDomainName]"
+            }
+          }
         }
       }
     }
-  ]
+  ],
+  "outputs": {
+    "serverInfo": {
+      "type": "array",
+      "copy": {
+        "count": "[length(range(0, length(parameters('locations'))))]",
+        "input": {
+          "name": "[reference(resourceId('Microsoft.Resources/deployments', format('database-{0}', parameters('locations')[range(0, length(parameters('locations')))[copyIndex()]])), '2019-10-01').outputs.serverName.value]",
+          "location": "[reference(resourceId('Microsoft.Resources/deployments', format('database-{0}', parameters('locations')[range(0, length(parameters('locations')))[copyIndex()]])), '2019-10-01').outputs.location.value]",
+          "fullyQualifiedDomainName": "[reference(resourceId('Microsoft.Resources/deployments', format('database-{0}', parameters('locations')[range(0, length(parameters('locations')))[copyIndex()]])), '2019-10-01').outputs.serverFullyQualifiedDomainname.value]"
+        }
+      }
+    }
+  }
 }
