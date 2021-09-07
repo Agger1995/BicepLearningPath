@@ -1,0 +1,69 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-08-01/managementGroupDeploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.4.613.9944",
+      "templateHash": "8580667186271859989"
+    }
+  },
+  "parameters": {
+    "managementGroupName": {
+      "type": "string"
+    }
+  },
+  "functions": [],
+  "variables": {
+    "policyDefinitionName": "DenyFandGSeriesVMs",
+    "policyAssignmentName": "DenyFandGSeriesVMs"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Authorization/policyDefinitions",
+      "apiVersion": "2020-03-01",
+      "name": "[variables('policyDefinitionName')]",
+      "properties": {
+        "policyType": "Custom",
+        "mode": "All",
+        "parameters": {},
+        "policyRule": {
+          "if": {
+            "allOf": [
+              {
+                "field": "type",
+                "equals": "Microsoft.Compute/virtualMachines"
+              },
+              {
+                "anyOf": [
+                  {
+                    "field": "Microsoft.Compute/virtualMachines/sku.name",
+                    "like": "Standard_F*"
+                  },
+                  {
+                    "field": "Microsoft.Compute/virtualMachines/sku.name",
+                    "like": "Standard_G*"
+                  }
+                ]
+              }
+            ]
+          },
+          "then": {
+            "effect": "deny"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Authorization/policyAssignments",
+      "apiVersion": "2020-03-01",
+      "name": "[variables('policyAssignmentName')]",
+      "properties": {
+        "policyDefinitionId": "[format('/providers/Microsoft.Management/managementGroups/{0}/providers/Microsoft.Authorization/policyDefinitions/{1}', parameters('managementGroupName'), variables('policyDefinitionName'))]"
+      },
+      "dependsOn": [
+        "[format('Microsoft.Authorization/policyDefinitions/{0}', variables('policyDefinitionName'))]"
+      ]
+    }
+  ]
+}
