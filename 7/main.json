@@ -5,7 +5,15 @@
     "_generator": {
       "name": "bicep",
       "version": "0.4.613.9944",
-      "templateHash": "7231935053870006847"
+      "templateHash": "14189327735872616025"
+    }
+  },
+  "parameters": {
+    "filesToCopy": {
+      "type": "array",
+      "metadata": {
+        "description": "List of files to copy to application storage account."
+      }
     }
   },
   "functions": [],
@@ -88,7 +96,22 @@
       "properties": {
         "azPowerShellVersion": "3.0",
         "retentionInterval": "P1D",
-        "scriptContent": "    Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Azure/azure-docs-json-samples/master/mslearn-arm-deploymentscripts-sample/appsettings.json' -OutFile 'appsettings.json'\r\n    $storageAccount = Get-AzStorageAccount -ResourceGroupName 'learndeploymentscript_exercise_1' | Where-Object { $_.StorageAccountName -like 'storage*' }\r\n    $blob = Set-AzStorageBlobContent -File 'appsettings.json' -Container 'config' -Blob 'appsettings.json' -Context $storageAccount.Context\r\n    $DeploymentScriptOutputs = @{}\r\n    $DeploymentScriptOutputs['Uri'] = $blob.ICloudBlob.Uri\r\n    $DeploymentScriptOutputs['StorageUri'] = $blob.ICloudBlob.StorageUri\r\n    "
+        "arguments": "[format('-File ''{0}''', string(parameters('filesToCopy')))]",
+        "environmentVariables": [
+          {
+            "name": "ResourceGroupName",
+            "value": "[resourceGroup().name]"
+          },
+          {
+            "name": "StorageAccountName",
+            "value": "[variables('storageAccountName')]"
+          },
+          {
+            "name": "StorageContainerName",
+            "value": "[variables('storageBlobContainerName')]"
+          }
+        ],
+        "scriptContent": "      param([string]$File)\r\n      $fileList = $File -replace '(\\[|\\])' -split ',' | ForEach-Object { $_.trim() }\r\n      $storageAccount = Get-AzStorageAccount -ResourceGroupName $env:ResourceGroupName -Name $env:StorageAccountName -Verbose\r\n      $count = 0\r\n      $DeploymentScriptOutputs = @{}\r\n      foreach ($fileName in $fileList) {\r\n          Write-Host \"Copying $fileName to $env:StorageContainerName in $env:StorageAccountName.\"\r\n          Invoke-RestMethod -Uri \"https://raw.githubusercontent.com/Azure/azure-docs-json-samples/master/mslearn-arm-deploymentscripts-sample/$fileName\" -OutFile $fileName\r\n          $blob = Set-AzStorageBlobContent -File $fileName -Container $env:StorageContainerName -Blob $fileName -Context $storageAccount.Context\r\n          $DeploymentScriptOutputs[$fileName] = @{}\r\n          $DeploymentScriptOutputs[$fileName]['Uri'] = $blob.ICloudBlob.Uri\r\n          $DeploymentScriptOutputs[$fileName]['StorageUri'] = $blob.ICloudBlob.StorageUri\r\n          $count++\r\n      }\r\n      Write-Host \"Finished copying $count files.\"    \r\n    "
       },
       "dependsOn": [
         "[resourceId('Microsoft.Storage/storageAccounts/blobServices/containers', variables('storageAccountName'), 'default', variables('storageBlobContainerName'))]",
@@ -99,8 +122,12 @@
   ],
   "outputs": {
     "fileUri": {
+      "type": "object",
+      "value": "[reference(resourceId('Microsoft.Resources/deploymentScripts', variables('deploymentScriptName'))).outputs]"
+    },
+    "storageAccountName": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Resources/deploymentScripts', variables('deploymentScriptName'))).outputs.uri]"
+      "value": "[variables('storageAccountName')]"
     }
   }
 }
