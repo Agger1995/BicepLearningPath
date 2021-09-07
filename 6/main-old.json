@@ -5,11 +5,20 @@
     "_generator": {
       "name": "bicep",
       "version": "0.4.613.9944",
-      "templateHash": "14585779703773465803"
+      "templateHash": "5075571610579179002"
+    }
+  },
+  "parameters": {
+    "virtualNetworkName": {
+      "type": "string"
+    },
+    "virtualNetworkAddressPrefix": {
+      "type": "string"
     }
   },
   "functions": [],
   "variables": {
+    "resourceGroupName": "ToyNetworking",
     "policyDefinitionName": "DenyFandGSeriesVMs",
     "policyAssignmentName": "DenyFandGSeriesVMs"
   },
@@ -58,6 +67,70 @@
       },
       "dependsOn": [
         "[subscriptionResourceId('Microsoft.Authorization/policyDefinitions', variables('policyDefinitionName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/resourceGroups",
+      "apiVersion": "2021-01-01",
+      "name": "[variables('resourceGroupName')]",
+      "location": "[deployment().location]"
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2019-10-01",
+      "name": "virtualNetwork",
+      "resourceGroup": "[variables('resourceGroupName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "virtualNetworkAddressPrefix": {
+            "value": "[parameters('virtualNetworkAddressPrefix')]"
+          },
+          "virtualNetworkName": {
+            "value": "[parameters('virtualNetworkName')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.4.613.9944",
+              "templateHash": "1550739188205073523"
+            }
+          },
+          "parameters": {
+            "virtualNetworkName": {
+              "type": "string"
+            },
+            "virtualNetworkAddressPrefix": {
+              "type": "string"
+            }
+          },
+          "functions": [],
+          "resources": [
+            {
+              "type": "Microsoft.Network/virtualNetworks",
+              "apiVersion": "2020-11-01",
+              "name": "[parameters('virtualNetworkName')]",
+              "location": "[resourceGroup().location]",
+              "properties": {
+                "addressSpace": {
+                  "addressPrefixes": [
+                    "[parameters('virtualNetworkAddressPrefix')]"
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', variables('resourceGroupName'))]"
       ]
     }
   ]
