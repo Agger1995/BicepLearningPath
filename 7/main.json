@@ -1,0 +1,106 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.4.613.9944",
+      "templateHash": "7231935053870006847"
+    }
+  },
+  "functions": [],
+  "variables": {
+    "storageAccountName": "[format('storage{0}', uniqueString(resourceGroup().id))]",
+    "storageBlobContainerName": "config",
+    "userAssignedIdentityName": "configDeployer",
+    "roleAssignmentName": "[guid(resourceGroup().id, 'contributor')]",
+    "contributorRoleDefinitionId": "[resourceId('Microsoft.Authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382dd24c')]",
+    "deploymentScriptName": "CopyConfigScript"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2019-06-01",
+      "name": "[variables('storageAccountName')]",
+      "tags": {
+        "displayName": "[variables('storageAccountName')]"
+      },
+      "location": "[resourceGroup().location]",
+      "kind": "StorageV2",
+      "sku": {
+        "name": "Standard_LRS",
+        "tier": "Standard"
+      },
+      "properties": {
+        "encryption": {
+          "services": {
+            "blob": {
+              "enabled": true
+            }
+          },
+          "keySource": "Microsoft.Storage"
+        },
+        "supportsHttpsTrafficOnly": true
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+      "apiVersion": "2019-04-01",
+      "name": "[format('{0}/{1}/{2}', variables('storageAccountName'), 'default', variables('storageBlobContainerName'))]",
+      "properties": {
+        "publicAccess": "Blob"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
+      "apiVersion": "2018-11-30",
+      "name": "[variables('userAssignedIdentityName')]",
+      "location": "[resourceGroup().location]"
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2020-04-01-preview",
+      "name": "[variables('roleAssignmentName')]",
+      "properties": {
+        "roleDefinitionId": "[variables('contributorRoleDefinitionId')]",
+        "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('userAssignedIdentityName'))).principalId]",
+        "principalType": "ServicePrincipal"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('userAssignedIdentityName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deploymentScripts",
+      "apiVersion": "2020-10-01",
+      "name": "[variables('deploymentScriptName')]",
+      "kind": "AzurePowerShell",
+      "location": "[resourceGroup().location]",
+      "identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('userAssignedIdentityName'))]": {}
+        }
+      },
+      "properties": {
+        "azPowerShellVersion": "3.0",
+        "retentionInterval": "P1D",
+        "scriptContent": "    Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/Azure/azure-docs-json-samples/master/mslearn-arm-deploymentscripts-sample/appsettings.json' -OutFile 'appsettings.json'\r\n    $storageAccount = Get-AzStorageAccount -ResourceGroupName 'learndeploymentscript_exercise_1' | Where-Object { $_.StorageAccountName -like 'storage*' }\r\n    $blob = Set-AzStorageBlobContent -File 'appsettings.json' -Container 'config' -Blob 'appsettings.json' -Context $storageAccount.Context\r\n    $DeploymentScriptOutputs = @{}\r\n    $DeploymentScriptOutputs['Uri'] = $blob.ICloudBlob.Uri\r\n    $DeploymentScriptOutputs['StorageUri'] = $blob.ICloudBlob.StorageUri\r\n    "
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts/blobServices/containers', variables('storageAccountName'), 'default', variables('storageBlobContainerName'))]",
+        "[resourceId('Microsoft.Authorization/roleAssignments', variables('roleAssignmentName'))]",
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('userAssignedIdentityName'))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "fileUri": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deploymentScripts', variables('deploymentScriptName'))).outputs.uri]"
+    }
+  }
+}
